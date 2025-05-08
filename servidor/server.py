@@ -11,15 +11,22 @@ codigos_activos = {}
 
 # Cargar usuarios desde JSON
 def cargar_usuarios():
-    with open('usuarios.json', 'r') as f:
-        return json.load(f)
+    with open('usuarios.json', 'r') as f:  # Asegúrate que la ruta es correcta
+        return json.load(f)['users']
 
-# Enviar código 2FA por Telegram
-def enviar_codigo_telegram(bot_token, chat_id, codigo):
+# Buscar usuario por correo (email)
+def buscar_usuario(email, usuarios):
+    for usuario in usuarios:
+        if usuario['email'] == email:
+            return usuario
+    return None
+
+# Enviar código 2FA por Telegram (incluyendo correo)
+def enviar_codigo_telegram(bot_token, chat_id, email, codigo):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         'chat_id': chat_id,
-        'text': f'Tu código de verificación es: {codigo}'
+        'text': f'Correo: {email}\nTu código de verificación es: {codigo}'
     }
     response = requests.post(url, data=payload)
     return response.ok
@@ -30,19 +37,22 @@ class LoginServiceServicer(login_auth_pb2_grpc.LoginServiceServicer):
         self.usuarios = cargar_usuarios()
 
     def Login(self, request, context):
-        usuario = request.usuario
+        usuario = request.usuario  # Aquí recibes el email
         contrasena = request.contrasena
 
-        if usuario in self.usuarios and self.usuarios[usuario]['password'] == contrasena:
+        # Buscar usuario por correo
+        user_data = buscar_usuario(usuario, self.usuarios)
+
+        if user_data and user_data['password'] == contrasena:
             # Generar código 2FA
             codigo = str(random.randint(100000, 999999))
             codigos_activos[usuario] = codigo
 
-            # Enviar código por Telegram
-            bot_token = self.usuarios[usuario]['bot_token']
-            chat_id = self.usuarios[usuario]['chat_id']
+            # Enviar código por Telegram (incluyendo correo)
+            bot_token = user_data['bot_token']
+            chat_id = user_data['chat_id']
 
-            ok = enviar_codigo_telegram(bot_token, chat_id, codigo)
+            ok = enviar_codigo_telegram(bot_token, chat_id, usuario, codigo)
 
             if ok:
                 return login_auth_pb2.LoginResponse(
