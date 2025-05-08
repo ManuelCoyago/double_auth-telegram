@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package login;
+
+// Servicio principal de login
+service LoginService {
+  // Paso 1: Enviar usuario y contraseña
+  rpc Login (LoginRequest) returns (LoginResponse);
+
+  // Paso 2: Verificar código 2FA
+  rpc VerificarCodigo (CodigoRequest) returns (CodigoResponse);
+}
+
+message LoginRequest {
+  string usuario = 1;
+  string contrasena = 2;
+}
+
+message LoginResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
+
+message CodigoRequest {
+  string usuario = 1;
+  string codigo = 2;
+}
+
+message CodigoResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
